@@ -17,17 +17,17 @@ type Model struct {
 
 type User struct {
 	gorm.Model
-	Id        uint   `form:"id"`
+	ID        uint
 	FirstName string `form:"first_name" binding:"required"`
 	LastName  string `form:"last_name" binding:"required"`
 	Email     string `form:"email" binding:"required"`
 	Phone     string `form:"phone" binding:"required"`
-	Password  string `form:"-"`
+	Password  string `form:"password" binding:"required"`
 	Avatar    string
 }
 
 type UserResponse struct {
-	Id        uint   `json:"id"`
+	ID        uint   `json:"id"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
@@ -41,8 +41,7 @@ func (user *User) SetPassword(password string) {
 }
 
 func (user *User) ComparePassword(password string) error {
-	match := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-	fmt.Println("Match:   ", match)
-	return match
+	fmt.Println(user.Password)
+	return bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 
 }

@@ -29,5 +29,5 @@ func Parsejwt(cookie string) (string, error) {
 	}
 
 	clai := token.Claims.(*jwt.StandardClaims)
-	return clai.Id, nil
+	return clai.Issuer, nil
 }

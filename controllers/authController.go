@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"net/smtp"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/quocphan74/gingo.git/common"
 	"github.com/quocphan74/gingo.git/database"
 	"github.com/quocphan74/gingo.git/models"
 	"github.com/quocphan74/gingo.git/utils"
@@ -28,26 +28,30 @@ func Register(c *gin.Context) {
 		})
 		return
 	}
-
-	// upload file
-
-	file, _ := c.FormFile("file")
-	filename := filepath.Join("./uploads", file.Filename)
-	if err := c.SaveUploadedFile(file, filename); err != nil {
-		c.String(http.StatusBadRequest, "upload file err: %s", err.Error())
-		return
+	paths, _ := common.UploadFile(c)
+	vartar := ""
+	if len(paths) != 0 {
+		vartar = paths[0]
 	}
-
 	user := models.User{
 		FirstName: dataUser.FirstName,
 		LastName:  dataUser.LastName,
 		Phone:     dataUser.Phone,
 		Email:     dataUser.Email,
-		Avatar:    "/upload/" + file.Filename,
+		Avatar:    vartar,
 	}
 	user.SetPassword(dataUser.Password)
-	err := database.DB.Create(&user)
-	if err != nil {
+
+	transaction := database.DB.Begin()
+
+	defer func() {
+		if r := recover(); r != nil {
+			transaction.Rollback()
+		}
+	}()
+
+	if err := transaction.Omit("Blog").Create(&user); err.Error != nil {
+		transaction.Rollback()
 		log.Println(err)
 	}
 	res := models.UserResponse{
@@ -59,11 +63,14 @@ func Register(c *gin.Context) {
 		Avatar:    user.Avatar,
 	}
 
+	transaction.Commit()
+
 	c.Status(200)
 	c.JSON(http.StatusOK, gin.H{
 		"user":    res,
 		"message": "Account created successfully",
 	})
+
 }
 
 func Login(c *gin.Context) {
@@ -116,6 +123,7 @@ func Login(c *gin.Context) {
 }
 
 func ChangePassword(c *gin.Context) {
+
 	cookie, _ := c.Cookie("jwt")
 	var user models.User
 	userID, _ := utils.Parsejwt(cookie)
@@ -134,7 +142,20 @@ func ChangePassword(c *gin.Context) {
 		return
 	}
 	user.SetPassword(user.Password)
-	database.DB.Model(&user).Updates(user)
+
+	transition := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			transition.Rollback()
+		}
+	}()
+
+	if err := transition.Model(&user).Updates(user); err.Error != nil {
+		transition.Rollback()
+		c.JSON(500, gin.H{"error": "Failed to update"})
+		return
+	}
+
 	res := models.UserResponse{
 		ID:        user.ID,
 		FirstName: user.FirstName,
@@ -143,11 +164,14 @@ func ChangePassword(c *gin.Context) {
 		Phone:     user.Phone,
 		Avatar:    user.Avatar,
 	}
+
+	transition.Commit()
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Updated password successfully.",
 		"data":    res,
 	})
 	return
+
 }
 
 func generateVerificationCode() string {
@@ -159,6 +183,7 @@ func generateVerificationCode() string {
 }
 
 func ResetPass(c *gin.Context) {
+
 	code := c.Query("code")
 	var user models.User
 	var codeN models.Code
@@ -180,20 +205,33 @@ func ResetPass(c *gin.Context) {
 	}
 	pass := generateVerificationCode()
 	user.SetPassword(pass)
+	trnsition := database.DB.Begin()
 
-	if err := database.DB.Model(&user).Updates(user); err.Error != nil {
+	defer func() {
+		if r := recover(); r != nil {
+			trnsition.Rollback()
+		}
+	}()
+
+	if err := trnsition.Model(&user).Updates(user); err.Error != nil {
+
+		trnsition.Rollback()
 		c.JSON(http.StatusFound, gin.H{
 			"message": "Reset password failed.",
 		})
 		return
 	}
 
-	if err := database.DB.Delete(&codeN); err.Error != nil {
+	if err := trnsition.Delete(&codeN); err.Error != nil {
+
+		trnsition.Rollback()
 		c.JSON(http.StatusFound, gin.H{
 			"message": "Deleted code failed.",
 		})
 		return
 	}
+
+	trnsition.Commit()
 	c.JSON(http.StatusOK, gin.H{
 		"message":      "Change password successfully.",
 		"new password": pass,
@@ -202,6 +240,7 @@ func ResetPass(c *gin.Context) {
 }
 
 func CheckEmail(c *gin.Context) {
+
 	var user models.User
 
 	email := c.Query("email")
@@ -223,13 +262,21 @@ func CheckEmail(c *gin.Context) {
 		UserID: int(user.ID),
 		// User:   user,
 	}
+	transition := database.DB.Begin()
 
-	if errdb := database.DB.Create(&codeN); errdb.Error != nil {
+	defer func() {
+		if r := recover(); r != nil {
+			transition.Rollback()
+		}
+	}()
+	if errdb := transition.Create(&codeN); errdb.Error != nil {
+		transition.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Error.",
 		})
 		return
 	}
+	transition.Commit()
 	from := os.Getenv("FROMEMAIL")
 	password := os.Getenv("PASSWORDEMAIL")
 	to := c.PostForm("email")

@@ -1,8 +1,6 @@
 package routes
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/quocphan74/gingo.git/controllers"
 	"github.com/quocphan74/gingo.git/middleware"
@@ -21,17 +19,16 @@ func SetupRoutes() *gin.Engine {
 		v1.GET("users", controllers.GetAllUser)
 		v1.DELETE("user/:id", controllers.DeleteUser)
 		v1.PUT("user/:id", controllers.UpdateUser)
-
 		v1.PUT("user/change-password", controllers.ChangePassword)
-
 		v1.GET("send-mail", controllers.CheckEmail)
-
 		v1.GET("rest-password", controllers.ResetPass)
-		v1.GET("post/home", func(ctx *gin.Context) {
-			ctx.JSON(http.StatusOK, gin.H{
-				"message": "hello work",
-			})
-		})
+
+		v1.GET("posts", controllers.GetAllPost)
+		v1.GET("post/:id", controllers.GetPost)
+		v1.POST("post", controllers.CreatePost)
+		v1.PUT("post/:id", controllers.UpdatePost)
+		v1.DELETE("post/:id", controllers.DeletePost)
+		v1.GET("unique-post", controllers.UniquePost)
 	}
 	return router
 }

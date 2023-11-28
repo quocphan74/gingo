@@ -2,28 +2,20 @@ package models
 
 import (
 	"fmt"
-	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
-type Model struct {
-	ID        uint `gorm:"primaryKey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-}
-
 type User struct {
 	gorm.Model
-	ID        uint
-	FirstName string `form:"first_name" binding:"required"`
-	LastName  string `form:"last_name" binding:"required"`
-	Email     string `form:"email" binding:"required"`
-	Phone     string `form:"phone" binding:"required"`
-	Password  string `form:"password" binding:"required"`
+	FirstName string `form:"first_name" json:"first_name" binding:"required"`
+	LastName  string `form:"last_name" json:"last_name" binding:"required"`
+	Email     string `form:"email" json:"email" binding:"required"`
+	Phone     string `form:"phone" json:"phone" binding:"required"`
+	Password  string `form:"password" json:"password" binding:"required"`
 	Avatar    string
+	Blog      []Blog
 }
 
 type UserResponse struct {

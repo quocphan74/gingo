@@ -12,18 +12,18 @@ import (
 
 func GetAllUser(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "5"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "4"))
 	offset := (page - 1) * pageSize
 	var total int64
 	var user []models.User
-	database.DB.Offset(offset).Limit(pageSize).Find(&user)
+	database.DB.Preload("Blog").Offset(offset).Limit(pageSize).Find(&user)
 	database.DB.Model(&models.User{}).Count(&total)
 	c.Status(200)
 	c.JSON(http.StatusOK, gin.H{
 		"meta": gin.H{
 			"total":     total,
 			"page":      page,
-			"last_page": math.Ceil(float64(int(total) / pageSize)),
+			"last_page": int(math.Ceil(float64(total) / float64(pageSize))),
 		},
 		"data":    user,
 		"message": "Get All user Successfully",
@@ -59,8 +59,21 @@ func DeleteUser(c *gin.Context) {
 		})
 		return
 	}
-	database.DB.Delete(&user)
+	transition := database.DB.Begin()
+
+	defer func() {
+		if r := recover(); r != nil {
+			transition.Rollback()
+		}
+	}()
+
+	if err := transition.Delete(&user); err != nil {
+		transition.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Deleted to update"})
+	}
 	database.DB.Find(&users)
+
+	transition.Commit()
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Deleted successfully.",
 		"data":    users,
@@ -86,8 +99,21 @@ func UpdateUser(c *gin.Context) {
 		})
 		return
 	}
+	transition := database.DB.Begin()
 
-	database.DB.Model(&user).Updates(user)
+	defer func() {
+		if r := recover(); r != nil {
+			transition.Rollback()
+		}
+	}()
+
+	if err := transition.Model(&user).Updates(user); err.Error != nil {
+		transition.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to update!",
+		})
+	}
+
 	res := models.UserResponse{
 		ID:        user.ID,
 		FirstName: user.FirstName,
@@ -96,6 +122,8 @@ func UpdateUser(c *gin.Context) {
 		Phone:     user.Phone,
 		Avatar:    user.Avatar,
 	}
+
+	transition.Commit()
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Updated successfully.",
 		"data":    res,

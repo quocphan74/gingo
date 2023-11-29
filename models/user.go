@@ -9,17 +9,17 @@ import (
 
 type User struct {
 	gorm.Model
-	FirstName string `form:"first_name" json:"first_name" binding:"required"`
-	LastName  string `form:"last_name" json:"last_name" binding:"required"`
-	Email     string `form:"email" json:"email" binding:"required"`
-	Phone     string `form:"phone" json:"phone" binding:"required"`
-	Password  string `form:"password" json:"password" binding:"required"`
-	Avatar    string
+	FirstName string `json:"first_name" form:"first_name" gorm:"type:varchar(255);not null"`
+	LastName  string `json:"last_name" form:"last_name"  gorm:"type:varchar(255);not null"`
+	Email     string `json:"email" form:"email" gorm:"type:varchar(255);unique;not null"`
+	Phone     string `json:"phone" form:"phone" gorm:"type:varchar(255);unique;not null"`
+	Password  string `json:"password" form:"password" gorm:"type:varchar(255);not null"`
+	Avatar    string `gorm:"type:varchar(255);null"`
 	Blog      []Blog
 }
 
 type UserResponse struct {
-	ID        uint   `json:"id"`
+	ID        uint
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`

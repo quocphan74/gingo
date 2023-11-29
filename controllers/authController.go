@@ -22,7 +22,7 @@ func Register(c *gin.Context) {
 
 	var dataUser models.User
 
-	if err := c.ShouldBind(&dataUser); err != nil {
+	if err := c.Bind(&dataUser); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})

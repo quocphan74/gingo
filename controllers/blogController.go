@@ -53,7 +53,7 @@ func GetAllPost(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "4"))
 	offset := (page - 1) * pageSize
 	var total int64
-	database.DB.Preload("User").Offset(offset).Limit(pageSize).Find(&blogs)
+	database.DB.Preload("User").Preload("Comment").Offset(offset).Limit(pageSize).Find(&blogs)
 	database.DB.Model(&models.Blog{}).Count(&total)
 	c.Status(200)
 	c.JSON(http.StatusOK, gin.H{

@@ -53,7 +53,7 @@ func GetAllPost(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "4"))
 	offset := (page - 1) * pageSize
 	var total int64
-	database.DB.Preload("User").Preload("Comment").Offset(offset).Limit(pageSize).Find(&blogs)
+	database.DB.Preload("User", "id <> ?", 0).Preload("Comment").Preload("Like").Offset(offset).Limit(pageSize).Find(&blogs)
 	database.DB.Model(&models.Blog{}).Count(&total)
 	c.Status(200)
 	c.JSON(http.StatusOK, gin.H{
@@ -161,7 +161,7 @@ func UniquePost(c *gin.Context) {
 	cookie, _ := c.Cookie("jwt")
 	id, _ := utils.Parsejwt(cookie)
 	var blog []models.Blog
-	database.DB.Model(&blog).Find(&blog, "user_id=?", id)
+	database.DB.Preload("User", "id <> ?", 0).Preload("Comment").Model(&blog).Find(&blog, "user_id=?", id)
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": blog,

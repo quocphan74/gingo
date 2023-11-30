@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/quocphan74/gingo.git/database"
 	"github.com/quocphan74/gingo.git/models"
+	"gorm.io/gorm/clause"
 )
 
 func CreateComment(c *gin.Context) {
@@ -28,7 +29,7 @@ func CreateComment(c *gin.Context) {
 		}
 	}()
 
-	if err := transition.Omit("User").Create(&comment); err.Error != nil {
+	if err := transition.Create(&comment); err.Error != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusNotFound, gin.H{
 			"message": "Created not success.",
@@ -118,6 +119,54 @@ func DeleteComment(c *gin.Context) {
 	transition.Commit()
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Deleted successfully.",
+	})
+	return
+}
+
+func ReplyComment(c *gin.Context) {
+	var comment models.Comment
+
+	if err := c.ShouldBindJSON(&comment); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error Server.",
+		})
+		return
+	}
+
+	transition := database.DB.Begin()
+
+	defer func() {
+		if r := recover(); r != nil {
+			transition.Rollback()
+		}
+	}()
+
+	if err := transition.Create(&comment); err.Error != nil {
+		transition.Rollback()
+		c.JSON(http.StatusFound, gin.H{
+			"message": "Comment not found.",
+		})
+		return
+	}
+	transition.Commit()
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Reply comment successfully.",
+	})
+	return
+}
+
+func GetComment(c *gin.Context) {
+	var comments []models.Comment
+	commnentID := c.Param("id")
+	if err := database.DB.Preload(clause.Associations).Find(&comments, commnentID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Get comment reply successfully.",
+		"data":    comments,
+		"id":      commnentID,
 	})
 	return
 }

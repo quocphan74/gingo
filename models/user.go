@@ -15,7 +15,7 @@ type User struct {
 	Phone     string `json:"phone" form:"phone" gorm:"type:varchar(255);unique;not null"`
 	Password  string `json:"password" form:"password" gorm:"type:varchar(255);not null"`
 	Avatar    string `gorm:"type:varchar(255);null"`
-	Blog      []Blog
+	// Blog      []Blog
 }
 
 type UserResponse struct {

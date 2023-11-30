@@ -35,6 +35,12 @@ func SetupRoutes() *gin.Engine {
 		v1.POST("comment", controllers.CreateComment)
 		v1.PUT("comment/:id", controllers.UpdateComment)
 		v1.DELETE("comment/:id", controllers.DeleteComment)
+		v1.POST("comment/reply", controllers.ReplyComment)
+		v1.GET("comment/reply/:id", controllers.GetComment)
+
+		// Like
+		v1.POST("like", controllers.Like)
+		v1.DELETE("un-like/:id", controllers.UnLike)
 	}
 	return router
 }

@@ -1,8 +1,8 @@
 package utils
 
-type ErrorMsg struct {
-	Field   string
-	Message string
+type ApiError struct {
+	Field string
+	Msg   string
 }
 
 func MsgForTag(tag string) string {
@@ -11,6 +11,13 @@ func MsgForTag(tag string) string {
 		return "This field is required"
 	case "email":
 		return "Invalid email"
+	case "min":
+		return "Minimum 3 lengths automatically."
+	case "max":
+		return "Exceeds the specified length of 100 characters."
+	case "uniqueEmail":
+		return "Email already exists."
 	}
+
 	return ""
 }

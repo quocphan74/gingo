@@ -34,6 +34,8 @@ func ConnectDB() {
 		&models.Blog{},
 		&models.Comment{},
 		&models.Like{},
+		&models.RoleUser{},
+		&models.Role{},
 	)
 
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{

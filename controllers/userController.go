@@ -114,19 +114,10 @@ func UpdateUser(c *gin.Context) {
 		})
 	}
 
-	res := models.UserResponse{
-		ID:        user.ID,
-		FirstName: user.FirstName,
-		LastName:  user.FirstName,
-		Email:     user.Email,
-		Phone:     user.Phone,
-		Avatar:    user.Avatar,
-	}
-
 	transition.Commit()
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Updated successfully.",
-		"data":    res,
+		"data":    user,
 	})
 	return
 }

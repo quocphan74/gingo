@@ -10,6 +10,6 @@ type Blog struct {
 	Image   string `json:"image" form:"image" gorm:"type:varchar(255)"`
 	UserID  uint   `json:"userId" form:"userId" gorm:"type:int(2)"`
 	Comment []*Comment
-	User    User    `gorm:"foreignKey:UserID"`
-	Like    []*Like `gorm:"polymorphic:Target;polymorphicValue:blog"`
+	User    User   `gorm:"foreignKey:UserID"`
+	Like    []Like `gorm:"foreignKey:BlogId"`
 }

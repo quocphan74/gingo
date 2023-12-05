@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 	"github.com/quocphan74/gingo.git/common"
 	"github.com/quocphan74/gingo.git/database"
@@ -21,24 +23,39 @@ import (
 func Register(c *gin.Context) {
 
 	var dataUser models.User
-
+	en_password := c.PostForm("en_password")
 	if err := c.Bind(&dataUser); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			out := make([]utils.ApiError, len(ve))
+			for i, fe := range ve {
+				out[i] = utils.ApiError{fe.Field(), utils.MsgForTag(fe.Tag())}
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"errors": out})
+		}
 		return
 	}
-	paths, _ := common.UploadFile(c)
-	vartar := ""
-	if len(paths) != 0 {
-		vartar = paths[0]
+
+	if dataUser.Password != en_password {
+		c.JSON(http.StatusFound, gin.H{"error": "Passwords do not match."})
+		return
+	}
+
+	path, _ := common.UploadFile(c)
+	if database.DB.First(&dataUser, "email=?", dataUser.Email); dataUser.ID != 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is already taken"})
+		return
 	}
 	user := models.User{
 		FirstName: dataUser.FirstName,
 		LastName:  dataUser.LastName,
 		Phone:     dataUser.Phone,
 		Email:     dataUser.Email,
-		Avatar:    vartar,
+		Avatar:    path,
+		RoleUser: models.RoleUser{
+			UserID: dataUser.ID,
+			RoleID: 2,
+		},
 	}
 	user.SetPassword(dataUser.Password)
 
@@ -50,20 +67,23 @@ func Register(c *gin.Context) {
 		}
 	}()
 
-	if err := transaction.Omit("Blog").Create(&user); err.Error != nil {
+	if err := transaction.Preload("RoleUser.Role").Create(&user); err.Error != nil {
 		transaction.Rollback()
 		log.Println(err)
 	}
-	res := models.UserResponse{
+
+	transaction.Commit()
+
+	res := models.UserStructure{
 		ID:        user.ID,
 		FirstName: user.FirstName,
-		LastName:  user.FirstName,
+		LastName:  user.LastName,
 		Email:     user.Email,
 		Phone:     user.Phone,
 		Avatar:    user.Avatar,
+		RoleID:    user.RoleUser.RoleID,
+		RoleName:  user.RoleUser.Role.Name,
 	}
-
-	transaction.Commit()
 
 	c.Status(200)
 	c.JSON(http.StatusOK, gin.H{
@@ -82,7 +102,7 @@ func Login(c *gin.Context) {
 		return
 	}
 	var user models.User
-	database.DB.Where("email=?", data["email"]).First(&user)
+	database.DB.Preload("RoleUser.Role").Where("email=?", data["email"]).First(&user)
 	if user.ID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Email Address does'n exit.",
@@ -97,15 +117,6 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	res := models.UserResponse{
-		ID:        user.ID,
-		FirstName: user.FirstName,
-		LastName:  user.FirstName,
-		Email:     user.Email,
-		Phone:     user.Phone,
-		Avatar:    user.Avatar,
-	}
-
 	token, err := utils.GenerateToken(strconv.Itoa(int(user.ID)))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -115,6 +126,18 @@ func Login(c *gin.Context) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	expirationSeconds := int(expirationTime.Unix())
 	c.SetCookie("jwt", token, expirationSeconds, "/", "localhost", false, true)
+	fmt.Println(user.RoleUser.Role)
+	res := models.UserStructure{
+		ID:        user.ID,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Email:     user.Email,
+		Phone:     user.Phone,
+		Avatar:    user.Avatar,
+		RoleID:    user.RoleUser.RoleID,
+		RoleName:  user.RoleUser.Role.Name,
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successfully.",
 		"user":    res,
@@ -156,19 +179,10 @@ func ChangePassword(c *gin.Context) {
 		return
 	}
 
-	res := models.UserResponse{
-		ID:        user.ID,
-		FirstName: user.FirstName,
-		LastName:  user.FirstName,
-		Email:     user.Email,
-		Phone:     user.Phone,
-		Avatar:    user.Avatar,
-	}
-
 	transition.Commit()
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Updated password successfully.",
-		"data":    res,
+		"data":    user,
 	})
 	return
 
@@ -308,4 +322,19 @@ func CheckEmail(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "Email sent"})
+}
+
+func GetRole(c *gin.Context) {
+	var role []models.RoleUser
+
+	database.DB.Preload("Role").Find(&role)
+
+	c.Status(200)
+	c.JSON(http.StatusOK, gin.H{
+
+		"data":    role,
+		"message": "Get All user Successfully",
+	})
+	return
+
 }
